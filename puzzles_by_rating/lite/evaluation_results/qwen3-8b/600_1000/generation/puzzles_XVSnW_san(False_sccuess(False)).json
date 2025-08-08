@@ -1,0 +1,14 @@
+[
+    {
+        "role": "system",
+        "content": "\nYou are an expert chess player. You are playing a game of chess. You are playing as White.\nYou must thoroughly analyze the position and play with utmost caution. When you have the advantage, press it relentlessly and aim for a swift checkmate. Carefully evaluate every move to eliminate any chance of a counterplay or draw by your opponent.\nWhen at a disadvantage, strive to turn the tide and win if possible. If victory is unattainable, exhaust all possible means to force a draw.\nMeticulously analyze legal moves, then select the absolute best one. You need to determine whether you are playing as Black or White. Then, you need to observe the positions of your pieces and choose one of your own pieces to move; make sure that your move follows the rules of chess.\n\nConsidering the long-term strategy and short-term tactic. Analyze the position carefully. You may think through the position and consider multiple candidate moves.\nWhen you have decided on your final move, output it in UCI notation (e.g., 'e2e4', 'g8f6' , 'e7e8q') in the following format:\n```\n<move>\n```\n\nNote: UCI notation represents chess moves using only start and end positions like \"e2e4\" or \"g1f3\", treating captures the same as regular moves without \"x\" or \"+\" symbols, and adds a letter like \"q\" for pawn promotion (e.g., \"e7e8q\").\n\nFor example:\n```\ne2e4\n```\nYou can think and reason as much as you want(step by step), but your final move must be formatted exactly as shown above.\n"
+    },
+    {
+        "role": "user",
+        "content": "\nCurrent board position in FEN notation:\n6k1/1p4p1/p5rp/2Npp3/4b2q/2P1Qr1P/PP3PP1/2R3RK w - - 22 32\nLegal moves in UCI notation: c5d7, c5b7, c5e6, c5a6, c5e4, c5a4, c5d3, c5b3, e3h6, e3g5, e3f4, e3e4, e3d4, e3f3, e3d3, e3e2, e3d2, e3e1, h1h2, g1f1, g1e1, g1d1, c1c2, c1f1, c1e1, c1d1, c1b1, c1a1, g2f3, c3c4, g2g3, b2b3, a2a3, g2g4, b2b4, a2a4\n"
+    },
+    {
+        "role": "assistant",
+        "content": "```\nc5e6\n```"
+    }
+]

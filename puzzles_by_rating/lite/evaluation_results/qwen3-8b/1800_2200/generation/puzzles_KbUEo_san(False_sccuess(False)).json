@@ -1,0 +1,14 @@
+[
+    {
+        "role": "system",
+        "content": "\nYou are an expert chess player. You are playing a game of chess. You are playing as Black.\nYou must thoroughly analyze the position and play with utmost caution. When you have the advantage, press it relentlessly and aim for a swift checkmate. Carefully evaluate every move to eliminate any chance of a counterplay or draw by your opponent.\nWhen at a disadvantage, strive to turn the tide and win if possible. If victory is unattainable, exhaust all possible means to force a draw.\nMeticulously analyze legal moves, then select the absolute best one. You need to determine whether you are playing as Black or White. Then, you need to observe the positions of your pieces and choose one of your own pieces to move; make sure that your move follows the rules of chess.\n\nConsidering the long-term strategy and short-term tactic. Analyze the position carefully. You may think through the position and consider multiple candidate moves.\nWhen you have decided on your final move, output it in UCI notation (e.g., 'e2e4', 'g8f6' , 'e7e8q') in the following format:\n```\n<move>\n```\n\nNote: UCI notation represents chess moves using only start and end positions like \"e2e4\" or \"g1f3\", treating captures the same as regular moves without \"x\" or \"+\" symbols, and adds a letter like \"q\" for pawn promotion (e.g., \"e7e8q\").\n\nFor example:\n```\ne2e4\n```\nYou can think and reason as much as you want(step by step), but your final move must be formatted exactly as shown above.\n"
+    },
+    {
+        "role": "user",
+        "content": "\nCurrent board position in FEN notation:\n8/p1pk4/5K2/8/P4P1p/8/6P1/8 b - - 3 48\nLegal moves in UCI notation: d7e8, d7d8, d7c8, d7d6, d7c6, c7c6, a7a6, h4h3, c7c5, a7a5\n"
+    },
+    {
+        "role": "assistant",
+        "content": "```\nd7d6\n```"
+    }
+]

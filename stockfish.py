@@ -74,11 +74,17 @@ def get_best_moves_and_evaluate(board, candidate_move=None, stockfish_path="./st
                 raise ValueError(f"Illegal move: {candidate_move}")
         
         # Get multipv analysis (multiple principal variations)
-        info = engine.analyse(
-            board, 
-            chess.engine.Limit(depth=depth),
-            multipv=n
-        )
+        if n != -1:
+            info = engine.analyse(
+                board, 
+                chess.engine.Limit(depth=depth),
+                multipv=n
+            )
+        else:
+            info = engine.analyse(
+                board, 
+                chess.engine.Limit(depth=depth)
+            )
         
         # Process results
         moves_with_win_rates = []
@@ -124,3 +130,14 @@ def get_best_moves_and_evaluate(board, candidate_move=None, stockfish_path="./st
     finally:
         # Always close the engine properly
         engine.quit()
+        
+        
+if __name__ == '__main__':
+    board = chess.Board(fen = "8/4P3/2b1p1k1/3p4/PK5B/8/8/8 b - - 2 47")
+    print(get_best_moves_and_evaluate(board,n=100))
+    
+    
+    
+    
+    
+    
