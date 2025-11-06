@@ -1,6 +1,6 @@
 # ChessArena
 
-This is the submission code for ChessArena, containing four components: 1. chess competition sampling (match-making algorithm); 2. Glicko-1 rating system; 3. fine-grained evaluation; 4. chess training.
+This is the code repo for ChessArena(https://arxiv.org/abs/2509.24239), containing four components: 1. chess competition sampling; 2. Glicko-1 ranking system; 3. three fine-grained evaluation tasks; 4. chess training.
 
 ## Evaluation
 
