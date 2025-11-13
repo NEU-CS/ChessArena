@@ -32,7 +32,7 @@ def calculate_win_rate(board, stockfish_path="./stockfish-8-linux/Linux/stockfis
         engine.quit()
 
 
-def get_best_moves_and_evaluate(board, candidate_move=None, stockfish_path="./stockfish-8-linux/Linux/stockfish_8_x64", n=3, depth=20):
+def get_best_moves_and_evaluate(board, candidate_move=None, stockfish_path="./stockfish-8-linux/Linux/stockfish_8_x64", n=3, depth=20,time=None):
     """
     Calculate the top n moves with their resulting win percentages and evaluate a specific candidate move if provided
     
@@ -51,7 +51,6 @@ def get_best_moves_and_evaluate(board, candidate_move=None, stockfish_path="./st
     """
     # Initialize the engine with the provided path
     engine = chess.engine.SimpleEngine.popen_uci(stockfish_path)
-    
     try:
         # Convert string move to chess.Move if needed
         candidate_move_obj = None
@@ -77,13 +76,13 @@ def get_best_moves_and_evaluate(board, candidate_move=None, stockfish_path="./st
         if n != -1:
             info = engine.analyse(
                 board, 
-                chess.engine.Limit(depth=depth),
+                chess.engine.Limit(depth=depth,time=time),
                 multipv=n
             )
         else:
             info = engine.analyse(
                 board, 
-                chess.engine.Limit(depth=depth)
+                chess.engine.Limit(depth=depth,time=time)
             )
         
         # Process results
@@ -118,7 +117,7 @@ def get_best_moves_and_evaluate(board, candidate_move=None, stockfish_path="./st
                 board_copy.push(candidate_move_obj)
                 
                 # Analyze the resulting position
-                candidate_info = engine.analyse(board_copy, chess.engine.Limit(depth=depth))
+                candidate_info = engine.analyse(board_copy, chess.engine.Limit(depth=depth,time=time))
                 candidate_score = candidate_info["score"].relative.score(mate_score=10000)
                 
                 # Convert opponent's score to our win percentage (negate because it's from opponent's perspective)
@@ -133,8 +132,11 @@ def get_best_moves_and_evaluate(board, candidate_move=None, stockfish_path="./st
         
         
 if __name__ == '__main__':
-    board = chess.Board(fen = "8/4P3/2b1p1k1/3p4/PK5B/8/8/8 b - - 2 47")
-    print(get_best_moves_and_evaluate(board,n=100))
+    board = chess.Board(fen = "r1bQ3k/pp3p1p/1bp2N1p/3pPq2/6R1/1P3N1P/1PP2PP1/5RK1 b - - 0 21")
+    stockfish_engine = StockfishEngine()
+    print(stockfish_engine.predict_move(board))
+    print(get_best_moves_and_evaluate(board,depth=25))
+    stockfish_engine.quit_engine()
     
     
     

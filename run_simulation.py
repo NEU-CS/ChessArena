@@ -19,8 +19,9 @@ import copy
 # Import stockfish functions
 from stockfish import calculate_win_rate, get_best_moves_and_evaluate\
 # Import lc0 engine
-from lc0 import lc0_engine as LC_ENGINE
-from utils import parse_uci_move,parse_san_move,san_to_uci,get_blitz_move_prompt,get_bullet_move_prompt,get_multi_turn_blindfold_move_prompt,get_blindfold_move_prompt
+from chess_engine import lc0_engine as LC_ENGINE
+from utils import parse_uci_move,parse_san_move,san_to_uci,get_blitz_move_prompt,get_bullet_move_prompt,get_multi_turn_blindfold_move_prompt,get_blindfold_move_prompt,\
+    judge_thinking
 
 # Configure logging
 logging.basicConfig(
@@ -75,19 +76,7 @@ def setup_game_logging(game_id: str, log_dir: str) -> logging.Logger:
     
     return game_logger
 
-def judge_thinking(content):
-    """judge if there are any forbidden thinking process"""
-    content = content.strip()
-    pattern = re.compile(r"\s*([a-h][1-8][a-h][1-8](?:[qrbnQRBN])?)\s*",re.DOTALL) #judge any UCI moves
-    content = pattern.sub('',content) #substitue UCI move into empty string
-    content_lst = content.split('```')
-    real_lst = []
-    for v in content_lst:
-        if v.strip():
-            real_lst.append(v)
-    if len(real_lst) > 0: #judge if there any other words
-        return True
-    return False
+
 
 def get_llm_move(client, player_config, fen, is_white, board, game_logger, max_retries=3,move_history=None,chat_history=None,last_opponent_move=None,lc0_engine=None):
     """
@@ -184,10 +173,9 @@ def get_llm_move(client, player_config, fen, is_white, board, game_logger, max_r
                 reasoning_content = response.choices[0].message.reasoning_content
                 if not reasoning_content:
                     reasoning_content = ""
-            content = reasoning_content + content
             if not content:
                 raise Exception("No content returned by API call")
-            verified_prompt.append({"role":"assistant", "content":str(content)})
+            verified_prompt.append({"role":"assistant", "content":str(content),"reasoning_content":reasoning_content})
             # Log the complete response
             game_logger.info(f"Raw response from {player_name} ({player_config.name}) (took {response_time:.2f}s):\n{content}")
             
@@ -645,7 +633,7 @@ def load_config(config_file):
         play_mode=config_data["black_player"].get("play_mode","blitz"),
     )
     
-    log_dir = os.path.join(f"{white_player.play_mode}-{black_player.play_mode}",f"{white_player.name}-vs-{black_player.name}")
+    log_dir = os.path.join("simulation_record",f"{white_player.play_mode}-{black_player.play_mode}",f"{white_player.name}-vs-{black_player.name}")
     # Create game config
     game_config = GameConfig(
         white_player=white_player,

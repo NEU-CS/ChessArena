@@ -1,12 +1,12 @@
 import chess
 import json
-from utils import parse_uci_move,parse_san_move,san_to_uci,get_blitz_move_prompt,connect_gpt,uci_to_san
+from utils import parse_uci_move,parse_san_move,san_to_uci,get_blitz_move_prompt,connect_gpt,uci_to_san,get_bullet_move_prompt,generate_random_move,\
+    get_blindfold_move_prompt
 import logging
-
+from chess_engine import lc0_engine,Random_Engine,StockfishEngine
 
 class Chess_Agent:
-    def __init__(self,fen,url,api_key,model_id,model_name,temperature,top_p,max_tokens,enable_thinking,is_san,max_retry,provide_legal_moves=True):
-        self.board = chess.Board(fen=fen)
+    def __init__(self,url,api_key,model_id,model_name,temperature,top_p,max_tokens,enable_thinking,is_san,max_retry,play_mode,provide_legal_moves=True):
         self.move_history = []
         self.base_url = url
         self.api_key = api_key
@@ -20,8 +20,31 @@ class Chess_Agent:
         self.max_retry = max_retry
         self.messages = []
         self.provide_legal_moves = provide_legal_moves
+        self.play_mode = play_mode
         self.logger = self._setup_default_logger()
+        if "maia" in self.model_id:
+            self.engine = lc0_engine()
+        elif "stockfish" in self.model_id:
+            self.engine = StockfishEngine()
+        elif "random" in self.model_id:
+            self.engine = Random_Engine()
+        self.depth = 20
     
+    
+    def set_up_stockfish_depth(self,depth):
+        self.depth = depth
+        
+    def clear_messages(self):
+        self.messages = []
+        self.move_history = []
+        
+    def set_up_board(self,fen):
+        self.board = chess.Board(fen=fen)
+    
+    def quit_engine(self):
+        if hasattr(self,"engine"):
+            self.engine.quit_engine()
+        
     def _setup_default_logger(self):
         """设置默认的logger配置"""
         logger = logging.getLogger(f"ChessAgent_{id(self)}")
@@ -55,7 +78,7 @@ class Chess_Agent:
             self.logger.error("Invalid move,break")
             return False
     
-    def get_opponent_move(self, move):
+    def push_opponent_move(self, move):
         self.push_move(move)
     
     def get_move(self,response):
@@ -70,10 +93,18 @@ class Chess_Agent:
             raise ValueError(f"Invalid move. Please choose another one.")
     
     
-    def get_blitz_messages(self):
+    def get_messages(self):
         is_white = True if self.board.turn == chess.WHITE else False
-        legal_moves = list(self.board.legal_moves)
-        messages = get_blitz_move_prompt(self.board.fen(),is_white,legal_moves,self.move_history,self.is_san)
+        legal_moves = []
+        if self.provide_legal_moves:
+            legal_moves = list(self.board.legal_moves)
+        if self.play_mode in ["blitz","standard"]:
+            messages = get_blitz_move_prompt(self.board.fen(),is_white,legal_moves,self.move_history,self.is_san)
+        elif self.play_mode == "bullet":
+            messages = get_bullet_move_prompt(self.board.fen(),is_white,legal_moves,self.move_history,self.is_san)
+        else:
+            #Blindfold play mode is not implemented. It's hard to compose prompt for blindfold play mode.
+            raise NotImplementedError
         self.messages.extend(messages)
         return messages
     
@@ -89,8 +120,19 @@ class Chess_Agent:
             raise ValueError(f"Invalid move: {uci_move}. Please choose another one.")
         
     def call_loop(self):
-        messages = self.get_blitz_messages()
+        messages = self.get_messages()
         for i in range(self.max_retry):
+            if hasattr(self,"engine"):
+                move = self.engine.predict_move(self.board)
+                record_move = f"""
+```
+{move}
+```
+"""
+                self.messages.append({"role":"assistant","content":record_move})
+                return move
+            
+            
             response = connect_gpt(self.model_id, self.base_url, messages, self.max_tokens, 
                                 self.temperature, self.top_p, self.api_key, self.enable_thinking)
             messages.append({"role":"assistant","content":response})
@@ -119,15 +161,15 @@ class Chess_Agent:
     
     def step(self):
         '''
-        生成一个move
+        generate a move and push it to the board
         '''
         move = self.call_loop()
         if not move:
             return False
+        self.logger.info(f"fen {self.board.fen()} Client's Move: {move}")
         f = self.push_move(chess.Move.from_uci(move))
         if not f:
             return False
-        self.logger.info(f"fen {self.board.fen()} Client Move: {move}")
         return move
 
 

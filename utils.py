@@ -5,13 +5,38 @@ import json
 import requests
 import time
 import copy
-import datetime
+import chess.pgn
+from datetime import datetime
+
+
+
+def parse_fen_from_user_prompt(prompt):
+    FEN_REGEX = r'Current board position in FEN notation:\s*([^\s]+(?:\s+[^\s]+){5})'
+    fen_match = re.search(FEN_REGEX, prompt)
+    fen = fen_match.group(1).strip() if fen_match else ""
+    return fen
+
+def judge_thinking(content):
+    """judge if there are any forbidden thinking process"""
+    content = content.strip()
+    pattern = re.compile(r"\s*([a-h][1-8][a-h][1-8](?:[qrbnQRBN])?)\s*",re.DOTALL) #judge any UCI moves
+    content = pattern.sub('',content) #substitue UCI move into empty string
+    content_lst = content.split('```')
+    real_lst = []
+    for v in content_lst:
+        if v.strip():
+            real_lst.append(v)
+    if len(real_lst) > 0: #judge if there any other words
+        return True
+    return False
+
 
 def connect_gpt(model, url, messages, max_tokens,temperature,top_p,api_key,enable_thinking):
     headers = {
             "Content-Type": "application/json",
             "Authorization": api_key
         }
+    
     
     payload = {
                 "model": model,
@@ -25,7 +50,7 @@ def connect_gpt(model, url, messages, max_tokens,temperature,top_p,api_key,enabl
     url = url.rstrip('/')
     if "chat/completions" not in url:
         url = url + "/chat/completions"
-    while ret is None:
+    while ret is None or len(ret) == 0:
         try:
             response = requests.post(
                         url,
@@ -33,12 +58,13 @@ def connect_gpt(model, url, messages, max_tokens,temperature,top_p,api_key,enabl
                         json=payload,
                         timeout=3600
                     )
+            #print(response.json())
             reasoning_content = response.json()['choices'][0]['message'].get('reasoning_content',"")
             if not reasoning_content:
                 reasoning_content = ""
             ret = reasoning_content + \
                 response.json()['choices'][0]['message']['content']
-                 
+            ret = ret.strip()
         except requests.exceptions.Timeout:
             print("Timeout error. Waiting...")
             print(e)
@@ -52,6 +78,7 @@ def connect_gpt(model, url, messages, max_tokens,temperature,top_p,api_key,enabl
             print(e)
             time.sleep(20)
     return ret
+
 def parse_json(content):
     """Parse json data from LLM response."""
     pattern = re.compile(r"```json(.*?)```",re.DOTALL)
@@ -62,6 +89,7 @@ def parse_json(content):
     except:
         pass
     return {}
+
 def parse_uci_move(content,static_eval=False):
     """Parse UCI chess move from LLM response."""
     # 找到所有匹配项，取最后一个
@@ -143,9 +171,28 @@ def remove_all_empty_lines(text):
     return re.sub(r'\n\s*\n', '\n', text)
 
 
-def sp_blitz(is_white,is_san=False):
-    if not is_san:
-        system_prompt = f"""
+def sp_blitz(is_white,merl=False):
+    merl_str = ""
+    if merl:
+        merl_str = """
+Your reasoning process and answer must be enclosed within <think> </think> and <answer> </answer> tags, respectively.
+You will get evaluated following Evaluation Scoring Rules:
+# Format Score:
+- ```<move>``` is the most important tag, if you output your move inside ```, score 0.5
+- If you output special tokens like <think>, each token will add 0.125 points
+- So, if you follow the format exactly as above, format score is 1
+- Otherwise, score 0
+
+# Correctness Score:
+- If your final move is legal but not good enough, score 3
+- An additional move quality score, where the score is higher when your move is better, with a maximum score of 6 and a minimum score of 0.
+- So, if you get a best move, correctness score is 9
+- Otherwise, score 0
+
+You will get the final score as their sum. Only when you have got the format score can you potentially obtain the correct score. 
+You should try your best to analysis the chess board and get the optimal move.
+"""
+    system_prompt = f"""
 You are an expert chess player. You are playing a game of chess. {'You are playing as White.' if is_white else 'You are playing as Black.'}
 You must thoroughly analyze the position and play with utmost caution. When you have the advantage, press it relentlessly and aim for a swift checkmate. Carefully evaluate every move to eliminate any chance of a counterplay or draw by your opponent.
 When at a disadvantage, strive to turn the tide and win if possible. If victory is unattainable, exhaust all possible means to force a draw.
@@ -157,12 +204,12 @@ When you have decided on your final move, output it in UCI notation (e.g., 'e2e4
 <move>
 ```
 
-Note: UCI notation represents chess moves using only start and end positions like "e2e4" or "g1f3", treating captures the same as regular moves without "x" or "+" symbols, and adds a letter like "q" for pawn promotion (e.g., "e7e8q").\n
+Note: UCI notation represents chess moves using only start and end positions like "e2e4" or "g1f3", treating captures the same as regular moves without "x" or "+" symbols, and adds a letter like "q" for pawn promotion (e.g., "e7e8q").
 For example:
 ```
 e2e4
 ```
-You can think and reason as much as you want(step by step), but your final move must be formatted exactly as shown above.
+
 Reminder of chess rules:
 - Bishops move diagonally.
 - Rooks move horizontally or vertically.
@@ -170,25 +217,8 @@ Reminder of chess rules:
 - Queens combine rook and bishop movement.
 - Kings move one square in any direction.
 - Pawns move forward, capture diagonally, and can promote.
-"""
-    else:
-        system_prompt = f"""
-You are an expert chess player. You are playing a game of chess. {'You are playing as White.' if is_white else 'You are playing as Black.'}
-You must thoroughly analyze the position and play with utmost caution. When you have the advantage, press it relentlessly and aim for a swift checkmate. Carefully evaluate every move to eliminate any chance of a counterplay or draw by your opponent.
-When at a disadvantage, strive to turn the tide and win if possible. If victory is unattainable, exhaust all possible means to force a draw.
-Meticulously analyze legal moves, then select the absolute best one. You need to determine whether you are playing as Black or White. Then, you need to observe the positions of your pieces and choose one of your own pieces to move; make sure that your move follows the rules of chess.
-
-Considering the long-term strategy and short-term tactic. Analyze the position carefully. You may think through the position and consider multiple candidate moves.
-When you have decided on your final move, output it in SAN or UCI notation (e.g., 'e4', 'Nf3' , 'exd5', 'Qh5+') in the following format:
-```
-<move>
-```
-
-For example:
-```
-e4
-```
-You can think and reason as much as you want(step by step), but your final move must be formatted exactly as shown above.      
+{merl_str}
+You can think and reason as much as you want(step by step), but your final move must be formatted exactly as shown above.
 """
     return system_prompt
 
@@ -196,8 +226,7 @@ You can think and reason as much as you want(step by step), but your final move 
 def sp_bullet(is_white):
     system_prompt = f"""
 You are an expert chess player. You are playing a game of chess. {'You are playing as White.' if is_white else 'You are playing as Black.'}
-This is a critically urgent match. You must thoroughly analyze the position and play with utmost caution. Leverage your wisdom to secure victory.
-When you have the advantage, press it relentlessly and aim for a swift checkmate. Carefully evaluate every move to eliminate any chance of a counterplay or draw by your opponent.
+You must thoroughly analyze the position and play with utmost caution. When you have the advantage, press it relentlessly and aim for a swift checkmate. Carefully evaluate every move to eliminate any chance of a counterplay or draw by your opponent.
 When at a disadvantage, strive to turn the tide and win if possible. If victory is unattainable, exhaust all possible means to force a draw.
 Meticulously analyze legal moves, then select the absolute best one. You need to determine whether you are playing as Black or White. Then, you need to observe the positions of your pieces and choose one of your own pieces to move; make sure that your move follows the rules of chess.
 
@@ -207,10 +236,20 @@ When you have decided on your final move, output it in UCI notation (e.g., 'e2e4
 <move>
 ```
 
+Note: UCI notation represents chess moves using only start and end positions like "e2e4" or "g1f3", treating captures the same as regular moves without "x" or "+" symbols, and adds a letter like "q" for pawn promotion (e.g., "e7e8q").
 For example:
 ```
 e2e4
 ```
+
+Reminder of chess rules:
+- Bishops move diagonally.
+- Rooks move horizontally or vertically.
+- Knights jump in an L-shape.
+- Queens combine rook and bishop movement.
+- Kings move one square in any direction.
+- Pawns move forward, capture diagonally, and can promote.
+
 You must give me your answer directly without using any other words. I will not accept your answer if there exists any other words. Only output ```<move>```. 
 Your final move must be formatted exactly as shown above.
 """
@@ -220,7 +259,7 @@ Your final move must be formatted exactly as shown above.
 def sp_blindfold(is_white):
     system_prompt = f"""
 You are an expert chess player. You are playing a game of chess. {'You are playing as White.' if is_white else 'You are playing as Black.'}
-We only have the move history of you and your opponent. You must reconstruct the game and choose a best move from the legal moves.
+We have the move history of you and your opponent. You must reconstruct the game and choose a best move from the legal moves.
 
 This is a critically urgent match. You must thoroughly analyze the position and play with utmost caution. Leverage your wisdom to secure victory.
 When you have the advantage, press it relentlessly and aim for a swift checkmate. Carefully evaluate every move to eliminate any chance of a counterplay or draw by your opponent.
@@ -233,10 +272,20 @@ When you have decided on your final move, output it in UCI notation (e.g., 'e2e4
 <move>
 ```
 
+Note: UCI notation represents chess moves using only start and end positions like "e2e4" or "g1f3", treating captures the same as regular moves without "x" or "+" symbols, and adds a letter like "q" for pawn promotion (e.g., "e7e8q").
 For example:
 ```
 e2e4
 ```
+
+Reminder of chess rules:
+- Bishops move diagonally.
+- Rooks move horizontally or vertically.
+- Knights jump in an L-shape.
+- Queens combine rook and bishop movement.
+- Kings move one square in any direction.
+- Pawns move forward, capture diagonally, and can promote.
+
 You can think and reason as much as you want(step by step), but your final move must be formatted exactly as shown above.
 """ 
     return system_prompt
@@ -311,7 +360,8 @@ Current board position in FEN notation:
 """
     return [{"role":"system","content":system_prompt},{"role": "user", "content": remove_all_empty_lines(user_prompt)}]
 
-
+def generate_random_move(legal_moves):
+    return random.choice(legal_moves)
 def get_bullet_move_prompt(fen, is_white, legal_moves=None, move_history=None):
     '''
     Generate a prompt for the LLM to make a bullet move.
@@ -381,6 +431,49 @@ You can think and reason as much as you want(step by step), but your final move 
 """
     
     return [{"role":"system","content":system_prompt},{"role": "user", "content": remove_all_empty_lines(user_prompt)}]
+
+def sp_blindfold_board_reduction(is_white):
+    system_prompt = f"""
+You are an expert chess player. You are playing a game of chess. {'You are playing as White.' if is_white else 'You are playing as Black.'}
+We only have the move history of you and your opponent. You must reconstruct the game and choose a best move from the legal moves.
+You should reconstruct the chess board and give me the board as FEN notation in the following format.
+```
+<fen>
+```
+
+For example:
+```
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+```
+You can think and reason as much as you want(step by step), but your final move must be formatted exactly as shown above.
+"""
+    return system_prompt
+
+
+def extract_fen(input_text):
+    '''
+    Extract the FEN string from the input text.
+    '''
+    # FEN格式：棋盘位置 行棋方 易位权利 吃过路兵 半回合计数 全回合计数
+    # 棋盘位置包含斜杠，所以需要特殊处理
+    fen_pattern = r'([rnbqkpRNBQKP1-8/]+)\s+([wb])\s+([KQkq\-]+)\s+([a-h][36]\-|[a-h][36]|\-)\s+(\d+)\s+(\d+)'
+    
+    # 先尝试从代码块中提取
+    code_block_pattern = r'```(?:\w+)?\s*([^`]+)\s*```'
+    code_blocks = re.finditer(code_block_pattern, input_text, re.MULTILINE | re.DOTALL)
+    
+    for block in code_blocks:
+        content = block.group(1).strip()
+        fen_match = re.search(fen_pattern, content)
+        if fen_match:
+            return fen_match.group(0)
+    
+    # 如果代码块中没找到，直接在全文中搜索
+    fen_match = re.search(fen_pattern, input_text)
+    if fen_match:
+        return fen_match.group(0)
+    
+    return None
 
 
 def get_multi_turn_blindfold_move_prompt(is_white, legal_moves=None, chat_history=None, last_opponent_move=None):
@@ -610,7 +703,7 @@ def evaluate_sets(pred_set, ground_truth_set):
         'f1_score': f1_score,
     }
 
-def uci_to_pgn(uci_moves, event="Game Analysis", site="?", white="Player1", black="Player2", result="*"):
+def uci_to_pgn(uci_moves, event="Chess Game", site="Online", white="Player1", black="Player2", result="*"):
     """
     将UCI格式的棋步转换为PGN格式
     
@@ -632,7 +725,7 @@ def uci_to_pgn(uci_moves, event="Game Analysis", site="?", white="Player1", blac
     # 设置PGN头部信息
     game.headers["Event"] = event
     game.headers["Site"] = site
-    game.headers["Date"] = datetime.now().strftime("%Y.%m.%d")
+    game.headers["Date"] = "Now"
     game.headers["Round"] = "?"
     game.headers["White"] = white
     game.headers["Black"] = black

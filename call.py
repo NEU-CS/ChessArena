@@ -173,7 +173,7 @@ def main():
     # 配置参数
     url = "http://yy.dbh.baidu-int.com/v1"
     api_key = "sk-va1zl4RPpU2XC43VnVfSB3marxgoTtyrUzcN5q7Pdtb9zAa5"
-    model = "deepseek-r1-0528"
+    model = "claude-3-7-sonnet-20250219-v1:0"
     temperature = 0.7
     max_tokens = 8192
     top_p = 1
