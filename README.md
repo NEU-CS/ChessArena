@@ -31,11 +31,15 @@ pip install -r requirements.txt
 
 As described in our paper, our chess competition sampling is based on Glicko formula derivation: matching two players with similar skill levels achieves the fastest RD convergence.
 #### Run a quick 4-game competition:
+
+
 ```bash
+export OPENAI_API_KEY=<your api_key>
+export OPENAI_BASE_URL=<your base_url>
 python competition_sampling.py --games 4
 ```
 
-This randomly selects the first player and uses our competition sampling algorithm to select the second player.
+This randomly selects the first player and uses our competition sampling algorithm to select the second player. OPENAI_API_KEY and OPENAI_BASE_URL are required for player2.
 
 #### Target specific model matchups:
 ```bash
