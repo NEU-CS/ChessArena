@@ -49,14 +49,22 @@ class ChessMatchSampling:
     
     def __init__(
         self,
+<<<<<<< HEAD
         args,
+=======
+>>>>>>> 2234950ffc591cf1d0cb103a0ccc306dd83021e1
         ratings_file: str = "./simulation_record/ratings.json",
         provide_move_history: bool = True,
         max_moves: int = 200,
         max_retries: int = 5,
         stockfish_path: str = "./stockfish-8-linux/Linux/stockfish_8_x64",
+<<<<<<< HEAD
         api_key: str = os.environ["OPENAI_API_KEY"], #your sk-key
         base_url: str = os.environ["OPENAI_BASE_URL"], #your api address
+=======
+        api_key: str = "your api key",
+        base_url: str = "your url"
+>>>>>>> 2234950ffc591cf1d0cb103a0ccc306dd83021e1
     ):
         """
         初始化匹配采样器
@@ -75,6 +83,7 @@ class ChessMatchSampling:
         self.max_moves = max_moves
         self.max_retries = max_retries
         self.stockfish_path = stockfish_path
+<<<<<<< HEAD
         self.args = args
         self.player1_url = self.args.player1_base_url #base_url of player1
         self.player1_api_key = self.args.player1_api_key #api_key of player1
@@ -89,12 +98,25 @@ class ChessMatchSampling:
             #you can see a model name in ./simulation_record/ratings.json
             #for example: qwen3-235b-a22b_blitz_True in ratings.json
             #the model id in our chessArena competitions is qwen3-235b-a22b
+=======
+        self.api_key = api_key
+        self.base_url = base_url
+        
+        # 模型映射表
+        self.model_map = {
+            'doubao-1.5-lite': 'doubao-lite-1.5-32k',
+            'maia-1100': 'lc0'
+>>>>>>> 2234950ffc591cf1d0cb103a0ccc306dd83021e1
         }
         
         self.type_map = {
             'blindfold': 'blindfold_multiTurn'
         }
+<<<<<<< HEAD
         self.thinking_models = {'doubao-seed-1-6-thinking-250615','doubao-1-5-thinking-pro-250415','deepseek-r1',"gemini-2.5-pro-preview-06-05","gemini-2.5-pro","O3"}
+=======
+        self.thinking_models = {'doubao-seed-1-6-thinking-250615','doubao-1-5-thinking-pro-250415','deepseek-r1',"gemini-2.5-pro-preview-06-05","gemini-2.5-pro"}
+>>>>>>> 2234950ffc591cf1d0cb103a0ccc306dd83021e1
         # 加载评分数据
         self._load_ratings(ratings_file)
         
@@ -258,7 +280,11 @@ class ChessMatchSampling:
         
         return _call_openai_api(model, url, "hello", api_key)
     
+<<<<<<< HEAD
     def _create_player_config(self, player_name: str, player_id: str, url: str, api_key: str) -> Tuple[Dict[str, Any], str]:
+=======
+    def _create_player_config(self, player_name: str, player_id: str) -> Tuple[Dict[str, Any], str]:
+>>>>>>> 2234950ffc591cf1d0cb103a0ccc306dd83021e1
         """
         创建棋手配置
         
@@ -275,16 +301,27 @@ class ChessMatchSampling:
         
         config = {
             "name": player_name,
+<<<<<<< HEAD
             "api_key": api_key,
             "base_url": url,
             "model": model_id,
             "max_tokens": 4096 if player_id not in self.thinking_models else 16384,
+=======
+            "api_key": self.api_key,
+            "base_url": url,
+            "model": model_id,
+            "max_tokens": 4096 if player_id not in self.thinking_models else 16384 ,
+>>>>>>> 2234950ffc591cf1d0cb103a0ccc306dd83021e1
             "play_mode": self.type_map.get(player_type,player_type),
             "provide_legal_moves": provide_legal_moves,
             "provide_move_history": self.provide_move_history
         }
         
+<<<<<<< HEAD
         return config
+=======
+        return config, url
+>>>>>>> 2234950ffc591cf1d0cb103a0ccc306dd83021e1
     
     def _execute_match(self, player1_id: str, player1_name: str, player2_id: str, player2_name:str, show_simulation_output: bool = True, save_log: bool = False) -> bool:
         """
@@ -311,8 +348,13 @@ class ChessMatchSampling:
         
         # 创建棋手配置
         try:
+<<<<<<< HEAD
             white_config = self._create_player_config(player1_name,player1_id,self.player1_url,self.player1_api_key)
             black_config = self._create_player_config(player2_name,player2_id,self.player2_url,self.player2_api_key)
+=======
+            white_config, white_url = self._create_player_config(player1_name,player1_id)
+            black_config, black_url = self._create_player_config(player2_name,player2_id)
+>>>>>>> 2234950ffc591cf1d0cb103a0ccc306dd83021e1
             
             # 测试模型可用性
             if not self._test_model_availability(white_url, white_config["model"], self.api_key):
@@ -537,6 +579,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run chess simulations between LLMs")
     parser.add_argument("--target", default=False,action="store_true", help='if target sampling')
     parser.add_argument("--player1_id", type=str, default="gpt-4.1", help="first player model id(for openai client call)")
+<<<<<<< HEAD
     parser.add_argument("--player1_name", type=str, default="gpt-4.1", help="first player model name(for our chessArena ratings record),\
         need follow play mode and whether provide legal moves; player1_name must in our ratings.json")
     parser.add_argument("--player1_play_mode",type=str,default="blitz")
@@ -550,6 +593,16 @@ def main():
         try:
             # 初始化匹配采样器
             sampler = ChessMatchSampling(args)
+=======
+    parser.add_argument("--player1_name", type=str, default="gpt-4.1_blitz_True", help="first player model name(for our chessArena ratings record),\
+        need follow play mode and whether provide legal moves; player1_name must in our ratings.json")
+    parser.add_argument("--games", type=int, default=2, help="Number of games to run") 
+    args = parser.parse_args()
+    for _ in range(args.games//2):
+        try:
+            # 初始化匹配采样器
+            sampler = ChessMatchSampling()
+>>>>>>> 2234950ffc591cf1d0cb103a0ccc306dd83021e1
             # 显示统计信息
             stats = sampler.get_player_stats()
             logger.info(f"系统统计: {stats}")
