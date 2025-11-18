@@ -175,7 +175,7 @@ def move_choose_metric(question_list,response_list,args):
                 "AMR":sum(all_mar)/len(all_mar),"total_nums":len(question_list),"uci_nums":uci_nums,"san_nums":san_nums}
     return result,final_metrics
 
-def eval_move_selection(args):
+def eval_move_choose(args):
     if not args.only_compute_metric:
         question_list = []
         with open(f"./ablation_evaluation/move_choose_evaluation/{args.play_mode}_legal_evaluation.jsonl","r") as f:
@@ -271,7 +271,7 @@ def chess_modeling_metric(question_list,response_list):
 
     return final_metrics,result 
             
-def eval_basic_understanding(args):
+def eval_chess_modeling(args):
     args.play_mode = 'bullet'
     if not args.only_compute_metric:
         question_list = []
@@ -428,14 +428,14 @@ def eval_board_reconstruction(args):
 
 if __name__ == '__main__':
     args_parser = argparse.ArgumentParser()
-    args_parser.add_argument('--max_tokens', type=int,default=4096)
-    args_parser.add_argument("--eval_nums", type=int, default=1000)
+    args_parser.add_argument('--max_tokens', type=int,default=2048)
+    args_parser.add_argument("--eval_nums", type=int, default=200)
     args_parser.add_argument('--temperature', type=float,default=0.2)
     args_parser.add_argument('--top_p',type=float,default=1.0)
-    args_parser.add_argument('--api_key', type=str,default="your api key")
+    args_parser.add_argument('--api_key', type=str,default="")
     args_parser.add_argument('--model_id', type=str,default="deepseek-v3")
     args_parser.add_argument('--model_name', type=str,default="deepseek-v3")
-    args_parser.add_argument('--url', type=str,default="your openai url")
+    args_parser.add_argument('--url', type=str,default="")
     args_parser.add_argument('--enable_thinking',action="store_true",default=False)
     args_parser.add_argument('--concurrency',type=int,default=20)
     args_parser.add_argument('--with_legal_move',action="store_true",default=False)
@@ -452,11 +452,11 @@ if __name__ == '__main__':
     args = args_parser.parse_args()
     if "maia" in args.model_id:
         engine = lc0_engine()
-    if args.task == "basic_understanding":
-        eval_basic_understanding(args)
-    elif args.task == "move_selection":
-        eval_move_selection(args)
-    elif args.task == "puzzle_solving":
+    if args.task == "chess_modeling":
+        eval_chess_modeling(args)
+    elif args.task == "move_choosing":
+        eval_move_choose(args)
+    elif args.task == "puzzle":
         eval_puzzle_accuracy(args)
     elif args.task == "board_reconstruction":
         eval_board_reconstruction(args)
